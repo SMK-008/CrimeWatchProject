@@ -21,14 +21,3 @@ data class CrimeReport(
     val latitude: Double? = null,
     val longitude: Double? = null
 )
-
-data class CrimeUpdate(
-    @DocumentId
-    val id: String = "",
-    val crimeReportId: String = "",
-    val message: String = "",
-    val userId: String = "",
-    val userName: String = "",
-    @ServerTimestamp
-    val timestamp: Timestamp? = null
-)

@@ -73,9 +73,15 @@ fun MainNavGraph(
                     }
                 )
             }
-            composable("crime_detail/{reportId}") { backStackEntry ->
-                val reportId = backStackEntry.arguments?.getString("reportId")
-                CrimeDetailScreen(reportId = reportId)
+            composable(
+                "crime_detail/{reportId}",
+                arguments = listOf(navArgument("reportId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val reportId = backStackEntry.arguments?.getString("reportId") ?: return@composable
+                CrimeDetailScreen(
+                    reportId = reportId,
+                    onNavigateBack = { navController.navigateUp() }
+                )
             }
             composable("missing_persons") {
                 MissingPersonsScreen(navController)

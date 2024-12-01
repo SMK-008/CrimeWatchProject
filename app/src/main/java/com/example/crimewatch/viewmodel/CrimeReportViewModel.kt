@@ -3,11 +3,12 @@ package com.example.crimewatch.viewmodel
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.crimewatch.data.models.CrimeReport
+import com.example.crimewatch.data.models.CrimeUpdate
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
-import com.example.crimewatch.data.models.CrimeReport
-import com.example.crimewatch.data.models.CrimeUpdate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -29,9 +30,16 @@ data class CrimeReportsState(
 class CrimeReportViewModel : ViewModel() {
     private val firestore = FirebaseFirestore.getInstance()
     private val storage = FirebaseStorage.getInstance()
+    private val auth = FirebaseAuth.getInstance()
     
     private val _reportsState = MutableStateFlow(CrimeReportsState())
     val reportsState: StateFlow<CrimeReportsState> = _reportsState
+
+    private val _selectedReport = MutableStateFlow<CrimeReport?>(null)
+    val selectedReport: StateFlow<CrimeReport?> = _selectedReport
+
+    private val _updates = MutableStateFlow<List<CrimeUpdate>>(emptyList())
+    val updates: StateFlow<List<CrimeUpdate>> = _updates
 
     init {
         loadCrimeReports()
@@ -159,6 +167,59 @@ class CrimeReportViewModel : ViewModel() {
             doc.toObject(CrimeReport::class.java)
         } catch (e: Exception) {
             null
+        }
+    }
+
+    fun loadCrimeReport(reportId: String) {
+        viewModelScope.launch {
+            try {
+                // Load report
+                firestore.collection("crime_reports")
+                    .document(reportId)
+                    .addSnapshotListener { snapshot, e ->
+                        if (e != null) return@addSnapshotListener
+                        _selectedReport.value = snapshot?.toObject(CrimeReport::class.java)
+                    }
+
+                // Load updates
+                firestore.collection("crime_updates")
+                    .whereEqualTo("crimeReportId", reportId)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .addSnapshotListener { snapshot, e ->
+                        if (e != null) return@addSnapshotListener
+                        _updates.value = snapshot?.documents?.mapNotNull {
+                            it.toObject(CrimeUpdate::class.java)
+                        } ?: emptyList()
+                    }
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
+    suspend fun updateReportStatus(reportId: String, newStatus: String) {
+        try {
+            firestore.collection("crime_reports")
+                .document(reportId)
+                .update("status", newStatus)
+                .await()
+        } catch (e: Exception) {
+            // Handle error
+        }
+    }
+
+    suspend fun addUpdate(crimeReportId: String, message: String) {
+        try {
+            val currentUser = auth.currentUser ?: return
+            val update = CrimeUpdate(
+                crimeReportId = crimeReportId,
+                message = message,
+                userId = currentUser.uid,
+                userName = currentUser.displayName ?: "Anonymous"
+            )
+            firestore.collection("crime_updates").add(update).await()
+        } catch (e: Exception) {
+            // Handle error
         }
     }
 }
