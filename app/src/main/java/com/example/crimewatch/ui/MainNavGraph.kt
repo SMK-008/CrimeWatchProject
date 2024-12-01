@@ -1,8 +1,10 @@
 package com.example.crimewatch.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -11,28 +13,31 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.crimewatch.ui.screens.*
 import com.example.crimewatch.ui.components.*
+import com.example.crimewatch.viewmodel.AuthViewModel
 
 @Composable
-fun MainNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
-    // Assume a flag to check login status
-    val isUserLoggedIn = remember { false } // Replace with your actual logic to check login state
+fun MainNavGraph(
+    navController: NavHostController,
+    modifier: Modifier = Modifier,
+    authViewModel: AuthViewModel = viewModel()
+) {
+    val authState by authViewModel.authState.collectAsState()
+    val startDestination = if (authState.user != null) "main" else "login"
 
     NavHost(
         navController = navController,
-        startDestination = if (isUserLoggedIn) "main" else "login",
+        startDestination = startDestination,
         modifier = modifier
     ) {
         // Login Flow
         composable("login") {
             LoginScreen(
                 onLoginSuccess = {
-                    // Navigate to main flow on login success
                     navController.navigate("main") {
                         popUpTo("login") { inclusive = true }
                     }
                 },
                 onRegisterClick = {
-                    // Navigate to registration
                     navController.navigate("register")
                 }
             )
@@ -40,13 +45,11 @@ fun MainNavGraph(navController: NavHostController, modifier: Modifier = Modifier
         composable("register") {
             RegistrationScreen(
                 onRegisterSuccess = {
-                    // Navigate to main flow on registration success
                     navController.navigate("main") {
                         popUpTo("register") { inclusive = true }
                     }
                 },
                 onBackClick = {
-                    // Go back to login
                     navController.navigateUp()
                 }
             )
@@ -61,7 +64,14 @@ fun MainNavGraph(navController: NavHostController, modifier: Modifier = Modifier
                 CommunityScreen(navController)
             }
             composable(BottomNavItem.Profile.route) {
-                ProfileScreen()
+                ProfileScreen(
+                    onSignOut = {
+                        authViewModel.signOut()
+                        navController.navigate("login") {
+                            popUpTo("main") { inclusive = true }
+                        }
+                    }
+                )
             }
             composable("crime_detail/{reportId}") { backStackEntry ->
                 val reportId = backStackEntry.arguments?.getString("reportId")

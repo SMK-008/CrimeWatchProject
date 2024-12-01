@@ -5,55 +5,48 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.crimewatch.viewmodel.AuthViewModel
 
 @Composable
-fun ProfileScreen() {
-    var username by remember { mutableStateOf("John Doe") }
-    var email by remember { mutableStateOf("johndoe@example.com") }
-    var phone by remember { mutableStateOf("123-456-7890") }
+fun ProfileScreen(
+    onSignOut: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
+) {
+    val authState by authViewModel.authState.collectAsState()
+    val user = authState.user
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
             text = "Profile",
-            style = TextStyle(fontSize = MaterialTheme.typography.headlineMedium.fontSize, fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(bottom = 16.dp)
+            style = MaterialTheme.typography.headlineMedium
         )
 
-        OutlinedTextField(
-            value = username,
-            onValueChange = { username = it },
-            label = { Text("Username") },
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-        )
+        Spacer(modifier = Modifier.height(32.dp))
 
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-        )
+        // Display user information
+        user?.let { currentUser ->
+            Text(
+                text = "Email: ${currentUser.email}",
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
 
-        OutlinedTextField(
-            value = phone,
-            onValueChange = { phone = it },
-            label = { Text("Phone Number") },
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-        )
+        Spacer(modifier = Modifier.weight(1f))
 
+        // Sign out button
         Button(
-            onClick = { /* Save changes to the profile */ },
-            modifier = Modifier.padding(top = 16.dp)
+            onClick = onSignOut,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Save Changes")
+            Text("Sign Out")
         }
     }
 }

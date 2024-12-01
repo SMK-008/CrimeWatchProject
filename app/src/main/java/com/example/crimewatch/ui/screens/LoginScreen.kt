@@ -12,16 +12,23 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.crimewatch.viewmodel.AuthResult
+import com.example.crimewatch.viewmodel.AuthViewModel
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
-    onRegisterClick: () -> Unit
+    onRegisterClick: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
 ) {
-    // State for email, password, and password visibility
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Collect auth state
+    val authState by authViewModel.authState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -29,7 +36,6 @@ fun LoginScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        // App Header
         Text(
             text = "Login to your Account",
             style = MaterialTheme.typography.headlineMedium,
@@ -38,7 +44,6 @@ fun LoginScreen(
         )
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Email Input Field
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -47,7 +52,6 @@ fun LoginScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Password Input Field
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -63,18 +67,51 @@ fun LoginScreen(
             },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Login Button
+        // Error message
+        errorMessage?.let { error ->
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Button(
-            onClick = onLoginSuccess,
-            modifier = Modifier.fillMaxWidth()
+            onClick = {
+                errorMessage = null
+                when {
+                    email.isBlank() -> errorMessage = "Please enter your email"
+                    password.isBlank() -> errorMessage = "Please enter your password"
+                    else -> {
+                        authViewModel.login(email, password) { result ->
+                            when (result) {
+                                is AuthResult.Success -> onLoginSuccess()
+                                is AuthResult.Error -> errorMessage = result.message
+                                AuthResult.Loading -> { /* Handle loading state if needed */ }
+                            }
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !authState.isLoading
         ) {
-            Text("Login")
+            if (authState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Login")
+            }
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Navigate to Registration Screen
         TextButton(onClick = onRegisterClick) {
             Text("Don't have an account? Register here")
         }

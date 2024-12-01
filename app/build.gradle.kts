@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -50,6 +51,16 @@ android {
 }
 
 dependencies {
+
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-auth")  // For user authentication
+    implementation("com.google.firebase:firebase-firestore")  // For storing crime reports
+    implementation("com.google.firebase:firebase-storage")  // For storing images and files
+    implementation("com.google.firebase:firebase-messaging")  // For push notifications
+    implementation("com.google.firebase:firebase-database")  // For realtime updates
+    implementation("com.google.android.gms:play-services-safetynet:18.0.1")  // For reCAPTCHA verification
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

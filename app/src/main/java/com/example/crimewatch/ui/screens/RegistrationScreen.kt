@@ -12,17 +12,26 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.crimewatch.viewmodel.AuthResult
+import com.example.crimewatch.viewmodel.AuthViewModel
 
 @Composable
 fun RegistrationScreen(
     onRegisterSuccess: () -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
 ) {
-    // State for email, password, confirmPassword, and password visibility
+    // State for name, email, password, confirmPassword, and password visibility
+    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Collect auth state
+    val authState by authViewModel.authState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -38,6 +47,15 @@ fun RegistrationScreen(
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(24.dp))
+
+        // Name Input Field
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Full Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Email Input Field
         OutlinedTextField(
@@ -74,20 +92,52 @@ fun RegistrationScreen(
             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Error message
+        errorMessage?.let { error ->
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Register Button
         Button(
             onClick = {
-                if (password == confirmPassword) {
-                    onRegisterSuccess()
-                } else {
-                    // Handle password mismatch error
+                errorMessage = null
+                when {
+                    name.isBlank() -> errorMessage = "Please enter your name"
+                    email.isBlank() -> errorMessage = "Please enter your email"
+                    password.isBlank() -> errorMessage = "Please enter a password"
+                    password != confirmPassword -> errorMessage = "Passwords do not match"
+                    password.length < 6 -> errorMessage = "Password must be at least 6 characters"
+                    else -> {
+                        authViewModel.register(email, password, name) { result ->
+                            when (result) {
+                                is AuthResult.Success -> onRegisterSuccess()
+                                is AuthResult.Error -> errorMessage = result.message
+                                AuthResult.Loading -> { /* Handle loading state if needed */ }
+                            }
+                        }
+                    }
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !authState.isLoading
         ) {
-            Text("Register")
+            if (authState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Register")
+            }
         }
         Spacer(modifier = Modifier.height(16.dp))
 
