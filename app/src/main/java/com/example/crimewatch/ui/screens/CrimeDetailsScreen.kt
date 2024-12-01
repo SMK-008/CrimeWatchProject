@@ -39,6 +39,7 @@ fun CrimeDetailScreen(
     // Load report and updates
     LaunchedEffect(reportId) {
         if (reportId != null) {
+            report = crimeReportViewModel.getCrimeReport(reportId)
             updates = crimeReportViewModel.getUpdatesForReport(reportId)
         }
     }

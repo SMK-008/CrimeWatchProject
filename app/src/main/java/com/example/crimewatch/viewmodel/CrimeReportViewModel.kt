@@ -149,4 +149,16 @@ class CrimeReportViewModel : ViewModel() {
             emptyList()
         }
     }
+
+    suspend fun getCrimeReport(reportId: String): CrimeReport? {
+        return try {
+            val doc = firestore.collection("crime_reports")
+                .document(reportId)
+                .get()
+                .await()
+            doc.toObject(CrimeReport::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
 }
