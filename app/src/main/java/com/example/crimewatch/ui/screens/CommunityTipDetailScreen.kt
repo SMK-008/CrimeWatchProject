@@ -2,147 +2,277 @@ package com.example.crimewatch.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import com.example.crimewatch.data.models.CommunityTipComment
+import com.example.crimewatch.viewmodel.CommunityViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-data class CommunityUpdate(
-    val user: String,
-    val message: String,
-    val timestamp: String
-)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CommunityTipDetailScreen(tipId: String?) {
-    // Mock data - fetch dynamically in a real app
-    val tip = when (tipId) {
-        "1" -> CommunityTip("1", "Report Suspicious Activity", "Always report any suspicious behavior or activity to the authorities. Provide detailed descriptions when possible.")
-        "2" -> CommunityTip("2", "Ensure Public Spaces Are Well-Lit", "Good lighting in public areas can help deter crime and provide a sense of security for residents.")
-        "3" -> CommunityTip("3", "Be Cautious of Strangers", "Teach children to avoid interacting with strangers without adult supervision. Encourage them to seek help from a trusted adult in case of an emergency.")
-        else -> null
+fun CommunityTipDetailScreen(
+    tipId: String,
+    onNavigateBack: () -> Unit,
+    viewModel: CommunityViewModel = viewModel()
+) {
+    val selectedTip by viewModel.selectedTip.collectAsState()
+    val comments by viewModel.comments.collectAsState()
+    var newComment by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(tipId) {
+        viewModel.loadTip(tipId)
+        viewModel.incrementViews(tipId)
     }
 
-    var updateText by remember { mutableStateOf("") }
-    val updates = remember {
-        mutableStateListOf(
-            CommunityUpdate(user = "Anonymous", message = "Great tip! More communities should adopt this practice.", timestamp = "2024-11-25 12:00 PM")
-        )
-    }
-
-    if (tip != null) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.Start
-        ) {
-            Text(
-                text = tip.title,
-                style = TextStyle(fontSize = MaterialTheme.typography.headlineMedium.fontSize, fontWeight = FontWeight.Bold),
-                modifier = Modifier.padding(bottom = 16.dp)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Community Tip") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, "Back")
+                    }
+                }
             )
-
-            Text(
-                text = tip.details,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            Text(
-                text = "Community Responses",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
+        }
+    ) { padding ->
+        selectedTip?.let { tip ->
             LazyColumn(
                 modifier = Modifier
-                    .fillMaxHeight(0.7f)
-                    .padding(bottom = 16.dp),
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(updates.size) { index ->
-                    val update = updates[index]
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(2.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = update.message,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "By: ${update.user}",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Text(
-                                    text = update.timestamp,
-                                    style = MaterialTheme.typography.bodySmall
+                // Images
+                if (tip.imageUrls.isNotEmpty()) {
+                    item {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(tip.imageUrls) { imageUrl ->
+                                AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = "Tip image",
+                                    modifier = Modifier
+                                        .height(200.dp)
+                                        .fillParentMaxWidth(),
+                                    contentScale = ContentScale.Crop
                                 )
                             }
                         }
                     }
                 }
-            }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = updateText,
-                    onValueChange = { updateText = it },
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Add a response") },
-                    maxLines = 1,
-                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        postUpdate(updateText, updates)
-                        updateText = ""
-                    })
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        postUpdate(updateText, updates)
-                        updateText = ""
-                    },
-                    enabled = updateText.isNotBlank()
-                ) {
-                    Text("Post")
+                // Title and Category
+                item {
+                    Column {
+                        Text(
+                            text = tip.title,
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Text(
+                            text = tip.category,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                // Description
+                item {
+                    Text(
+                        text = tip.description,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+
+                // Location and Date
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                contentDescription = "Location",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = tip.location,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        tip.timestamp?.toDate()?.let { date ->
+                            Text(
+                                text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(date),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+
+                // Stats
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        viewModel.likeTip(tip.id)
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Favorite,
+                                    contentDescription = "Like",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Text(
+                                text = "${tip.likes}",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.RemoveRedEye,
+                                contentDescription = "Views"
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${tip.views}",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                }
+
+                // Comments Section
+                item {
+                    Text(
+                        text = "Comments",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+
+                // Add Comment
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = newComment,
+                            onValueChange = { newComment = it },
+                            placeholder = { Text("Add a comment...") },
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = {
+                                if (newComment.isNotBlank()) {
+                                    scope.launch {
+                                        viewModel.addComment(tipId, newComment)
+                                        newComment = ""
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Send, "Send comment")
+                        }
+                    }
+                }
+
+                // Comments List
+                items(comments) { comment ->
+                    CommentItem(comment = comment)
                 }
             }
+        } ?: run {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
         }
-    } else {
-        Text(
-            text = "Tip not found.",
-            modifier = Modifier.fillMaxSize().padding(16.dp),
-            textAlign = TextAlign.Center
-        )
     }
 }
 
-private fun postUpdate(updateText: String, updates: MutableList<CommunityUpdate>) {
-    if (updateText.isNotBlank()) {
-        val currentTime = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.getDefault()).format(Date())
-        updates.add(CommunityUpdate(user = "Anonymous", message = updateText, timestamp = currentTime))
+@Composable
+fun CommentItem(comment: CommunityTipComment) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = comment.userName,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                comment.timestamp?.toDate()?.let { date ->
+                    Text(
+                        text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(date),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = comment.message,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Favorite,
+                    contentDescription = "Likes",
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "${comment.likes}",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
     }
 }

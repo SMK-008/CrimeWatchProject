@@ -87,9 +87,15 @@ fun MainNavGraph(
                 val personId = backStackEntry.arguments?.getString("personId")
                 MissingPersonDetailScreen(personId)
             }
-            composable("community_tip_detail/{tipId}") { backStackEntry ->
-                val tipId = backStackEntry.arguments?.getString("tipId")
-                CommunityTipDetailScreen(tipId)
+            composable(
+                "community_tip_detail/{tipId}",
+                arguments = listOf(navArgument("tipId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val tipId = backStackEntry.arguments?.getString("tipId") ?: return@composable
+                CommunityTipDetailScreen(
+                    tipId = tipId,
+                    onNavigateBack = { navController.navigateUp() }
+                )
             }
         }
     }
