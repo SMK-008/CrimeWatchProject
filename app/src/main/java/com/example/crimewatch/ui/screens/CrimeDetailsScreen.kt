@@ -2,6 +2,8 @@ package com.example.crimewatch.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -12,165 +14,193 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.crimewatch.data.models.CrimeReport
+import com.example.crimewatch.data.models.CrimeUpdate
+import com.example.crimewatch.viewmodel.AuthViewModel
+import com.example.crimewatch.viewmodel.CrimeReportViewModel
+import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun CrimeDetailScreen(reportId: String?) {
-    // Mock data; you would fetch this dynamically based on reportId in a real app
-    val report = when (reportId) {
-        "1" -> CrimeReport(
-            id = "1",
-            headline = "Robbery at Local Mall",
-            description = "A suspect robbed a jewelry store at the central mall. Witnesses describe them as wearing a black hoodie.",
-            suspectName = "John Doe",
-            crimeCommitted = "Armed Robbery",
-            imageUrl = "https://via.placeholder.com/150"
-        )
-        "2" -> CrimeReport(
-            id = "2",
-            headline = "Vandalism in Downtown Area",
-            description = "Graffiti found on multiple public walls. Suspect reportedly seen with a spray can.",
-            suspectName = "Jane Smith",
-            crimeCommitted = "Vandalism",
-            imageUrl = "https://via.placeholder.com/150"
-        )
-        else -> null
-    }
-
+fun CrimeDetailScreen(
+    reportId: String?,
+    crimeReportViewModel: CrimeReportViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel()
+) {
     var updateText by remember { mutableStateOf("") }
-    val updates = remember {
-        mutableStateListOf(
-            Update(user = "Witness A", message = "I saw someone matching this description near the mall yesterday.", timestamp = "2024-11-25 10:30 AM")
-        )
+    var report by remember { mutableStateOf<CrimeReport?>(null) }
+    var updates by remember { mutableStateOf<List<CrimeUpdate>>(emptyList()) }
+    val authState by authViewModel.authState.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    // Load report and updates
+    LaunchedEffect(reportId) {
+        if (reportId != null) {
+            updates = crimeReportViewModel.getUpdatesForReport(reportId)
+        }
     }
 
-    if (report != null) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            // Crime Details
-            Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    AsyncImage(
-                        model = report.imageUrl,
-                        contentDescription = "Suspect Image",
-                        modifier = Modifier.size(200.dp),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = report.headline, style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        text = "Suspect Name: ${report.suspectName}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                    Text(
-                        text = "Crime Committed: ${report.crimeCommitted}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                    Text(
-                        text = report.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 16.dp),
-                        textAlign = TextAlign.Justify
-                    )
-                }
-            }
-
-            // Updates Section
-            Text(
-                text = "Updates on the Crime",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        report?.let { crimeReport ->
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxHeight(0.6f)
-                    .padding(bottom = 16.dp),
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(updates.size) { index ->
-                    val update = updates[index]
+                // Images
+                if (crimeReport.imageUrls.isNotEmpty()) {
+                    item {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(crimeReport.imageUrls) { imageUrl ->
+                                AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = "Crime Scene Image",
+                                    modifier = Modifier
+                                        .height(200.dp)
+                                        .fillParentMaxWidth(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Report details
+                item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(2.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Text(
-                                text = update.message,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(bottom = 8.dp)
+                                text = crimeReport.headline,
+                                style = MaterialTheme.typography.headlineSmall
                             )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                            Text(
+                                text = crimeReport.description,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Divider()
+                            Text(
+                                text = "Location: ${crimeReport.location}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Crime Type: ${crimeReport.crimeType}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            crimeReport.suspectDescription?.let { description ->
                                 Text(
-                                    text = "By: ${update.user}",
-                                    style = MaterialTheme.typography.bodySmall
+                                    text = "Suspect Description: $description",
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
+                            }
+                            Text(
+                                text = "Reported by: ${crimeReport.reporterName}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = "Status: ${crimeReport.status}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            crimeReport.timestamp?.toDate()?.let { date ->
                                 Text(
-                                    text = update.timestamp,
+                                    text = "Reported on: ${SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(date)}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }
                     }
                 }
+
+                // Updates
+                item {
+                    Text(
+                        text = "Updates",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+
+                items(updates) { update ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = update.message,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "By: ${update.userName}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                update.timestamp?.toDate()?.let { date ->
+                                    Text(
+                                        text = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(date),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
-            // Add Update Section
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            // Add update section
+            if (authState.user != null) {
                 OutlinedTextField(
                     value = updateText,
                     onValueChange = { updateText = it },
-                    modifier = Modifier.weight(1f),
                     label = { Text("Add an update") },
-                    maxLines = 1,
-                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        postUpdate(updateText, updates)
-                        updateText = ""
-                    })
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            if (updateText.isNotBlank() && reportId != null) {
+                                scope.launch {
+                                    crimeReportViewModel.addUpdate(
+                                        crimeReportId = reportId,
+                                        message = updateText,
+                                        userId = authState.user?.uid ?: "",
+                                        userName = authState.user?.displayName ?: "Anonymous"
+                                    )
+                                    updateText = ""
+                                }
+                            }
+                        }
+                    )
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        postUpdate(updateText, updates)
-                        updateText = ""
-                    },
-                    enabled = updateText.isNotBlank()
-                ) {
-                    Text("Post")
-                }
+            }
+        } ?: run {
+            // Loading or error state
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
         }
-    } else {
-        Text(
-            text = "Report not found.",
-            modifier = Modifier.fillMaxSize(),
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-private fun postUpdate(updateText: String, updates: MutableList<Update>) {
-    if (updateText.isNotBlank()) {
-        val currentTime = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.getDefault()).format(Date())
-        updates.add(Update(user = "Anonymous", message = updateText, timestamp = currentTime))
     }
 }

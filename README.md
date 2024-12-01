@@ -85,7 +85,7 @@ CrimeWatch serves multiple crucial purposes in community safety:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/CrimeWatch.git
+   git clone https://github.com/SMK-008/CrimeWatchProject.git
    ```
 
 2. Open the project in Android Studio
@@ -115,7 +115,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📞 Support
 
-For support, please open an issue in the GitHub repository or contact our support team at [support email].
+For support, please open an issue in the GitHub repository.
 
 ---
 
