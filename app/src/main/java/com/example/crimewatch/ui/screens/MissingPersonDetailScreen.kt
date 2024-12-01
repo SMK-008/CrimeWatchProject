@@ -2,6 +2,8 @@ package com.example.crimewatch.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -12,174 +14,186 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.crimewatch.viewmodel.MissingPersonViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-import com.example.crimewatch.data.models.*
 
-data class Update(
-    val user: String,
-    val message: String,
-    val timestamp: String
-)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MissingPersonDetailScreen(personId: String?) {
-    // Mock data; in a real app, this data should be fetched dynamically using personId
-    val person = when (personId) {
-        "1" -> MissingPerson(
-            id = "1",
-            name = "Alice Johnson",
-            age = 25,
-            lastSeenLocation = "Central Park, NY",
-            description = "Alice was last seen wearing a blue jacket and jeans.",
-            imageUrl = "https://via.placeholder.com/150"
-        )
-        "2" -> MissingPerson(
-            id = "2",
-            name = "Michael Smith",
-            age = 40,
-            lastSeenLocation = "Downtown LA",
-            description = "Michael was last seen at a coffee shop near Main Street.",
-            imageUrl = "https://via.placeholder.com/150"
-        )
-        else -> null
-    }
-
+fun MissingPersonDetailScreen(
+    personId: String?,
+    viewModel: MissingPersonViewModel = viewModel()
+) {
     var updateText by remember { mutableStateOf("") }
-    val updates = remember {
-        mutableStateListOf(
-            Update(
-                user = "John Doe",
-                message = "Last seen near Central Park on Nov 20.",
-                timestamp = "2024-11-25 10:30 AM"
-            )
-        )
+    val person by viewModel.selectedPerson.collectAsState()
+    val updates by viewModel.updates.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(personId) {
+        if (personId != null) {
+            viewModel.loadMissingPerson(personId)
+        }
     }
 
-    if (person != null) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(4.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    AsyncImage(
-                        model = person.imageUrl,
-                        contentDescription = "Missing Person Image",
-                        modifier = Modifier.size(200.dp),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = person.name, style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        text = "Age: ${person.age}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                    Text(
-                        text = "Last Seen Location: ${person.lastSeenLocation}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                    Text(
-                        text = person.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 16.dp),
-                        textAlign = TextAlign.Justify
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Updates on ${person.name}'s Whereabouts",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        person?.let { missingPerson ->
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxHeight(0.7f)
-                    .padding(bottom = 16.dp),
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(updates.size) { index ->
-                    val update = updates[index]
+                // Images
+                if (missingPerson.imageUrls.isNotEmpty()) {
+                    item {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(missingPerson.imageUrls) { imageUrl ->
+                                AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = "Missing person image",
+                                    modifier = Modifier
+                                        .height(200.dp)
+                                        .fillParentMaxWidth(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Person details
+                item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(2.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Text(
-                                text = update.message,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(bottom = 8.dp)
+                                text = missingPerson.name,
+                                style = MaterialTheme.typography.headlineSmall
                             )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                            Text(
+                                text = "Age: ${missingPerson.age}",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Divider()
+                            Text(
+                                text = "Last Seen: ${missingPerson.lastSeenLocation}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Last Seen Date: ${missingPerson.lastSeenDate}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Description: ${missingPerson.description}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Contact Information: ${missingPerson.contactInfo}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Status: ${missingPerson.status}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Reported by: ${missingPerson.reporterName}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            missingPerson.timestamp?.toDate()?.let { date ->
                                 Text(
-                                    text = "By: ${update.user}",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Text(
-                                    text = update.timestamp,
+                                    text = "Reported on: ${SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(date)}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }
                     }
                 }
-            }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = updateText,
-                    onValueChange = { updateText = it },
-                    modifier = Modifier.weight(1f),
-                    label = { Text("Add an update") },
-                    maxLines = 1,
-                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        postUpdate(updateText, updates)
-                        updateText = ""
-                    })
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        postUpdate(updateText, updates)
-                        updateText = ""
-                    },
-                    enabled = updateText.isNotBlank()
-                ) {
-                    Text("Post")
+                // Updates
+                item {
+                    Text(
+                        text = "Updates",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+
+                items(updates) { update ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = update.message,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "By: ${update.userName}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                update.timestamp?.toDate()?.let { date ->
+                                    Text(
+                                        text = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(date),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
-        }
-    } else {
-        Text(
-            text = "Missing person not found.",
-            modifier = Modifier.fillMaxSize(),
-            textAlign = TextAlign.Center
-        )
-    }
-}
 
-private fun postUpdate(updateText: String, updates: MutableList<Update>) {
-    if (updateText.isNotBlank()) {
-        val currentTime = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.getDefault()).format(Date())
-        updates.add(Update(user = "Anonymous", message = updateText, timestamp = currentTime))
+            // Add update section
+            OutlinedTextField(
+                value = updateText,
+                onValueChange = { updateText = it },
+                label = { Text("Add an update") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(
+                    onSend = {
+                        if (updateText.isNotBlank() && personId != null) {
+                            scope.launch {
+                                viewModel.addUpdate(
+                                    missingPersonId = personId,
+                                    message = updateText
+                                )
+                                updateText = ""
+                            }
+                        }
+                    }
+                )
+            )
+        } ?: run {
+            // Loading or error state
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
     }
 }
