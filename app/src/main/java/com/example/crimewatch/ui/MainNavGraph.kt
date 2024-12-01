@@ -91,7 +91,10 @@ fun MainNavGraph(
                 arguments = listOf(navArgument("personId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val personId = backStackEntry.arguments?.getString("personId")
-                MissingPersonDetailScreen(personId)
+                MissingPersonDetailScreen(
+                    personId = personId,
+                    onNavigateBack = { navController.navigateUp() }
+                )
             }
             composable(
                 "community_tip_detail/{tipId}",
